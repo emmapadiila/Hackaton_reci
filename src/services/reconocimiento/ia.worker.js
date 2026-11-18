@@ -39,6 +39,32 @@ import datosTexto from './embeddings-texto.json';
 
 env.allowLocalModels = false; // los modelos vienen de Hugging Face, no del servidor local
 
+/*
+ * Motor ONNX: usamos la compilación WASM ESTÁNDAR en lugar de la "asyncify"
+ * que Transformers.js elige por defecto en el navegador. La "asyncify" no
+ * implementa la conversión a `double` que usa OWL-ViT (nodo /class_head/Cast),
+ * y fallaba con: "Could not find an implementation for Cast(13)…".
+ * Verificado: la estándar carga OWL-ViT y CLIP. Además pesa menos (14 MB vs 27 MB).
+ */
+const onnx = env.backends.onnx;
+if (onnx?.wasm && onnx.versions?.web) {
+  const base = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${onnx.versions.web}/dist/`;
+  onnx.wasm.wasmPaths = {
+    mjs: `${base}ort-wasm-simd-threaded.mjs`,
+    wasm: `${base}ort-wasm-simd-threaded.wasm`,
+  };
+}
+
+/** Marca un error de CARGA de modelo: el worker debe reiniciarse (ver index.js). */
+class ErrorDeCarga extends Error {}
+const conCargaSegura = (cargar) => async (id) => {
+  try {
+    return await cargar(id);
+  } catch (err) {
+    throw new ErrorDeCarga(err?.message || String(err));
+  }
+};
+
 /** Crea un callback que suma el avance de todos los archivos de un modelo. */
 function crearProgreso(id, modelo) {
   const archivos = {};
@@ -65,7 +91,7 @@ function cargaPerezosa(cargar) {
   };
 }
 
-const cargarClip = cargaPerezosa(async (id) => {
+const cargarClip = cargaPerezosa(conCargaSegura(async (id) => {
   if (vectoresDesactualizados(CATEGORIAS, datosTexto, MODELO)) {
     throw new Error(
       'Las categorías cambiaron y los vectores de texto están desactualizados. Ejecuta "npm run generar-embeddings".'
@@ -79,15 +105,15 @@ const cargarClip = cargaPerezosa(async (id) => {
     progress_callback,
   });
   return { procesador, modelo };
-});
+}));
 
-const cargarDetector = cargaPerezosa((id) =>
+const cargarDetector = cargaPerezosa(conCargaSegura((id) =>
   pipeline('zero-shot-object-detection', MODELO_DETECTOR, {
     dtype: DTYPE_DETECTOR,
     device: 'wasm',
     progress_callback: crearProgreso(id, 'detector'),
   })
-);
+));
 
 async function tareaClasificar(id, imagen) {
   const { procesador, modelo } = await cargarClip(id);
@@ -132,7 +158,14 @@ self.addEventListener('message', ({ data }) => {
       const resultado = await tarea(id, imagen);
       self.postMessage({ id, tipo: 'resultado', ...resultado });
     } catch (err) {
-      self.postMessage({ id, tipo: 'error', mensaje: err?.message || String(err) });
+      // Si falló la CARGA de un modelo, Transformers.js deja "envenenada" su cadena
+      // interna de carga y los demás modelos también fallarían: pedimos reiniciar el worker.
+      self.postMessage({
+        id,
+        tipo: 'error',
+        mensaje: err?.message || String(err),
+        reiniciarWorker: err instanceof ErrorDeCarga,
+      });
     }
   });
 });

@@ -42,20 +42,29 @@ function obtenerWorker() {
       return;
     }
     pendientes.delete(data.id);
-    if (data.tipo === 'resultado') pendiente.resolver(data);
-    else pendiente.rechazar(new Error(data.mensaje));
+    if (data.tipo === 'resultado') {
+      pendiente.resolver(data);
+      return;
+    }
+    pendiente.rechazar(new Error(data.mensaje));
+    if (data.reiniciarWorker) reiniciarWorker(new Error(data.mensaje));
   });
   worker.addEventListener('error', (evento) => {
     // Suele ocurrir si el celular se queda sin memoria al cargar los modelos.
     const error = new Error(
       evento.message || 'El proceso de IA se detuvo inesperadamente (posible falta de memoria del dispositivo)'
     );
-    pendientes.forEach((p) => p.rechazar(error));
-    pendientes.clear();
-    worker?.terminate();
-    worker = null; // se recreará en el próximo intento
+    reiniciarWorker(error);
   });
   return worker;
+}
+
+/** Cierra el worker (liberando memoria) y rechaza lo pendiente; se recrea al próximo análisis. */
+function reiniciarWorker(error) {
+  pendientes.forEach((p) => p.rechazar(error));
+  pendientes.clear();
+  worker?.terminate();
+  worker = null;
 }
 
 function enviarAlWorker(tipo, imagen, onProgreso) {
