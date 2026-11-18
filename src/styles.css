@@ -1,0 +1,470 @@
+:root {
+  --verde: #1f7a4d;
+  --verde-oscuro: #145536;
+  --verde-claro: #e7f4ec;
+  --texto: #1d2a24;
+  --texto-suave: #5b6b63;
+  --fondo: #f6f8f7;
+  --superficie: #ffffff;
+  --borde: #d6e0db;
+  --error: #b42318;
+  --error-fondo: #fdecea;
+  --info-fondo: #fff7e0;
+  --info-borde: #e7c55a;
+  --radio: 14px;
+  /* Márgenes que respetan la "muesca" del celular (sobre todo acostado). */
+  --margen-izq: max(16px, env(safe-area-inset-left));
+  --margen-der: max(16px, env(safe-area-inset-right));
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--texto);
+  background: var(--fondo);
+  -webkit-text-size-adjust: 100%;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; background: var(--fondo); }
+
+/* Ningún medio ni texto largo puede ensanchar la página. */
+img, video { max-width: 100%; }
+button { font: inherit; -webkit-tap-highlight-color: transparent; }
+p, li, dd, summary { overflow-wrap: anywhere; }
+
+.app {
+  min-height: 100vh; /* navegadores antiguos */
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* ---------- Encabezado y pie ---------- */
+.encabezado {
+  background: var(--verde);
+  color: #fff;
+  padding: max(14px, env(safe-area-inset-top)) var(--margen-der) 14px var(--margen-izq);
+}
+.encabezado h1 { margin: 0; font-size: 1.35rem; }
+.encabezado p { margin: 2px 0 0; font-size: 0.85rem; opacity: 0.9; }
+
+.contenido {
+  flex: 1;
+  min-width: 0;
+  padding: 16px var(--margen-der) 16px var(--margen-izq);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pie {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--texto-suave);
+  padding: 10px 16px max(10px, env(safe-area-inset-bottom));
+}
+
+/* ---------- Botones ---------- */
+.boton {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 18px;
+  border-radius: var(--radio);
+  font-size: 1.08rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.08s, background 0.15s;
+}
+.boton:active { transform: scale(0.98); }
+.boton:focus-visible,
+.boton-redondo:focus-visible,
+.boton-disparador:focus-visible { outline: 3px solid #f2b705; outline-offset: 2px; }
+
+.boton-primario { background: var(--verde); color: #fff; }
+.boton-secundario { background: var(--superficie); color: var(--verde); border-color: var(--verde); }
+/* Hover solo con mouse: en pantallas táctiles el color se quedaba "pegado". */
+@media (hover: hover) {
+  .boton-primario:hover { background: var(--verde-oscuro); }
+  .boton-secundario:hover { background: var(--verde-claro); }
+}
+.boton-enlace {
+  background: none; color: var(--verde); min-height: 44px; width: auto;
+  text-decoration: underline; font-weight: 500;
+}
+
+.acciones-columna { display: flex; flex-direction: column; gap: 10px; }
+.acciones-fila { display: flex; justify-content: center; }
+
+/* ---------- Inicio ---------- */
+.inicio { display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.inicio-ilustracion { font-size: 4rem; margin-top: 8px; }
+.inicio h2 { margin: 0; font-size: 1.6rem; }
+.inicio p { margin: 0; color: var(--texto-suave); line-height: 1.45; }
+.pasos {
+  text-align: left;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 14px 14px 14px 34px;
+  margin: 4px 0;
+  line-height: 1.6;
+}
+.nota-privacidad { font-size: 0.85rem; }
+
+/* ---------- Cámara ---------- */
+.vista-camara { display: flex; flex-direction: column; gap: 12px; }
+
+.visor {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  /* Altura máxima = pantalla menos encabezado, ayuda y barra de botones,
+     para que el botón de tomar foto siempre quede visible sin desplazarse. */
+  max-height: calc(100vh - 250px);
+  max-height: calc(100dvh - 250px);
+  min-height: 220px;
+  background: #0d1411;
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+.video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.video-espejo { transform: scaleX(-1); }
+.oculto { visibility: hidden; }
+
+.guia-encuadre {
+  position: absolute;
+  inset: 12%;
+  border: 3px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  pointer-events: none;
+}
+
+.visor-mensaje {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  gap: 10px;
+  padding: 16px;
+  color: #fff;
+  text-align: center;
+  overflow-y: auto; /* si el visor es bajo, el error y sus botones no se recortan */
+}
+.visor-mensaje p { margin: 0; }
+.visor-error { background: #2a1714; }
+.visor-error .acciones-columna { width: 100%; max-width: 320px; }
+.texto-suave { opacity: 0.75; font-size: 0.9rem; }
+
+.ayuda-encuadre { margin: 0; text-align: center; color: var(--texto-suave); }
+
+.chip-camara {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  max-width: calc(100% - 20px);
+  background: rgba(0, 0, 0, 0.6); color: #fff;
+  font-size: 0.85rem; padding: 4px 12px; border-radius: 999px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.hueco-boton { width: 56px; height: 56px; }
+.texto-centro { margin: 0; text-align: center; }
+.texto-suave-oscuro { color: var(--texto-suave); font-size: 0.9rem; }
+
+.mensaje-aviso {
+  margin: 0;
+  background: var(--info-fondo);
+  border: 1px solid var(--info-borde);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.info-tecnica {
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.info-tecnica summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+.info-tecnica summary:focus-visible { outline: 3px solid #f2b705; outline-offset: 2px; }
+.info-tecnica ul, .info-tecnica ol { margin: 6px 0; padding-left: 20px; }
+
+.barra-camara {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 4px 0;
+}
+.boton-redondo {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--borde);
+  background: var(--superficie);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+.boton-redondo:disabled { opacity: 0.35; cursor: not-allowed; }
+.boton-disparador {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: var(--verde);
+  border: 6px solid #fff;
+  box-shadow: 0 0 0 3px var(--verde);
+  cursor: pointer;
+}
+.boton-disparador:active { transform: scale(0.94); }
+.boton-disparador:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---------- Foto y resultado ---------- */
+.vista-foto { display: flex; flex-direction: column; gap: 14px; }
+.marco-foto {
+  position: relative;
+  background: #0d1411;
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+.marco-foto {
+  --alto-max-foto: 60vh;
+  --alto-max-foto: 60dvh;
+  display: flex;
+  justify-content: center;
+}
+
+/* Contenedor con la MISMA proporción que la foto: los recuadros (en %) quedan exactos. */
+.lienzo-foto {
+  position: relative;
+  width: 100%;
+}
+.lienzo-foto[style] {
+  width: min(100%, calc(var(--alto-max-foto) * var(--proporcion)));
+  aspect-ratio: var(--proporcion);
+}
+.lienzo-foto img { display: block; width: 100%; height: 100%; }
+.lienzo-foto:not([style]) img { max-height: var(--alto-max-foto); object-fit: contain; }
+
+/* Recuadros de los objetos detectados */
+.recuadro {
+  position: absolute;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 3px solid var(--color);
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: opacity 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.recuadro:focus-visible { outline: 3px solid #f2b705; outline-offset: 1px; }
+.recuadro-activo {
+  background: color-mix(in srgb, var(--color) 18%, transparent);
+  box-shadow: 0 0 0 3px #fff, 0 0 14px 4px var(--color);
+  z-index: 2;
+}
+.recuadro-tenue { opacity: 0.35; }
+.recuadro-etiqueta {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  background: var(--color);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: 6px 0 6px 0;
+}
+
+/* Lista de detecciones (verificación de la Etapa 1) */
+.lista-detecciones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.item-deteccion {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  text-align: left;
+  background: var(--fondo);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.item-activo { border-color: var(--verde); background: var(--verde-claro); }
+.item-deteccion:focus-visible { outline: 3px solid #f2b705; outline-offset: 2px; }
+.numero-objeto {
+  flex: none;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: #fff; font-weight: 700;
+}
+.item-texto { display: flex; flex-direction: column; min-width: 0; }
+.item-texto small { color: var(--texto-suave); }
+.item-texto .advertencia-fondo { color: #8a5a00; }
+
+.columna-resultados { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.seccion-secundaria {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 4px 12px;
+}
+.seccion-secundaria summary { min-height: 44px; padding: 10px 0; cursor: pointer; color: var(--texto-suave); }
+.seccion-secundaria[open] { padding-bottom: 12px; }
+.seccion-secundaria .panel-resultado { border: none; padding: 0; background: transparent; }
+.seccion-secundaria .panel-resultado.aviso-info,
+.seccion-secundaria .panel-resultado.aviso-error { padding: 12px; }
+.etiqueta-origen {
+  position: absolute; left: 10px; bottom: 10px;
+  background: rgba(0, 0, 0, 0.6); color: #fff;
+  font-size: 0.8rem; padding: 4px 10px; border-radius: 999px;
+}
+
+.panel-resultado {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  text-align: center;
+}
+.panel-resultado h3 { margin: 0; font-size: 1.1rem; }
+.panel-resultado p { margin: 0; line-height: 1.45; }
+.panel-resultado .spinner { align-self: center; border-color: var(--borde); border-top-color: var(--verde); }
+.aviso-info { background: var(--info-fondo); border-color: var(--info-borde); }
+.aviso-error { background: var(--error-fondo); border-color: var(--error); }
+
+.ficha { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left; }
+.dato { background: var(--fondo); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.dato dt { font-size: 0.75rem; color: var(--texto-suave); }
+.dato dd { margin: 2px 0 0; font-weight: 600; }
+.ficha-vacia { opacity: 0.6; }
+.dato-destacado dd { font-size: 1.15rem; color: var(--verde-oscuro); }
+
+/* Barra de descarga del modelo */
+.barra-progreso {
+  height: 10px;
+  background: var(--borde);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.barra-progreso span { display: block; height: 100%; background: var(--verde); transition: width 0.2s; }
+
+/* Las 3 opciones más probables */
+.alternativas { text-align: left; }
+.alternativas h4 { margin: 0 0 6px; font-size: 0.9rem; color: var(--texto-suave); }
+.alternativas ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.alternativas li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(60px, 35%) 3.2em;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+}
+.alternativa-barra { height: 8px; background: var(--borde); border-radius: 999px; overflow: hidden; }
+.alternativa-barra span { display: block; height: 100%; background: var(--verde); }
+.alternativa-valor { text-align: right; font-variant-numeric: tabular-nums; }
+.detalle-modelo { font-size: 0.78rem; color: var(--texto-suave); }
+
+.mensaje-error {
+  margin: 0;
+  background: var(--error-fondo);
+  color: var(--error);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+/* ---------- Spinner ---------- */
+.spinner {
+  width: 36px; height: 36px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: girar 0.9s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.5s; }
+  .boton, .boton-disparador { transition: none; }
+}
+
+/* Pantallas grandes: la cámara en formato horizontal */
+@media (min-width: 700px) {
+  .visor { aspect-ratio: 4 / 3; }
+}
+
+/* Celulares muy angostos (320 px) */
+@media (max-width: 360px) {
+  .contenido { padding: 12px; }
+  .barra-camara { justify-content: space-between; }
+  .boton { font-size: 1rem; }
+}
+
+/* ---------- Celular acostado (pantallas bajas) ----------
+   El visor ocupa la izquierda y los botones de la cámara pasan a una
+   columna a la derecha, siempre visibles. Encabezado compacto y sin pie. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app { max-width: 1000px; }
+  .encabezado { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: 6px; }
+  .encabezado h1 { font-size: 1.05rem; }
+  .encabezado p { display: none; }
+  .pie { display: none; }
+  .contenido { padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 10px; }
+
+  /* Cámara */
+  .vista-camara {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 14px;
+    row-gap: 10px;
+  }
+  .vista-camara > * { grid-column: 1; }
+  .visor {
+    grid-row: 1;
+    aspect-ratio: auto;
+    min-height: 0;
+    height: calc(100vh - 66px);
+    height: calc(100dvh - 66px);
+    max-height: none;
+  }
+  .barra-camara {
+    grid-column: 2;
+    grid-row: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    padding: 0;
+  }
+  .boton-redondo, .hueco-boton { width: 52px; height: 52px; }
+  .boton-disparador { width: 72px; height: 72px; }
+
+  /* Foto: imagen a la izquierda, resultado y botones a la derecha */
+  .vista-foto {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .marco-foto {
+    grid-row: 1 / span 2;
+    --alto-max-foto: calc(100vh - 66px);
+    --alto-max-foto: calc(100dvh - 66px);
+  }
+
+  /* Inicio más compacto */
+  .inicio-ilustracion { font-size: 2.5rem; margin-top: 0; }
+  .inicio h2 { font-size: 1.3rem; }
+  .inicio .acciones-columna { flex-direction: row; }
+  .boton { min-height: 48px; padding: 10px 14px; }
+}

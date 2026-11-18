@@ -1,0 +1,23 @@
+{
+  "name": "residuos-ia",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:movil": "vite --mode movil",
+    "build": "vite build",
+    "preview": "vite preview",
+    "generar-embeddings": "node scripts/generar-embeddings.mjs"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.0.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "vite": "^6.3.5"
+  }
+}
