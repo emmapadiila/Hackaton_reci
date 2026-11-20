@@ -1,5 +1,5 @@
 /** Tamaño máximo aceptado para imágenes subidas desde la galería. */
-export const TAMANO_MAXIMO_MB = 15;
+export const TAMANO_MAXIMO_MB = 10;
 
 /**
  * Toma el fotograma actual del <video> y lo devuelve como Blob JPEG.
@@ -29,7 +29,7 @@ export function capturarFotograma(video, { tipo = 'image/jpeg', calidad = 0.9 } 
 /** Devuelve un mensaje de error si el archivo no sirve, o null si es válido. */
 export function validarArchivoImagen(archivo) {
   if (!archivo) return 'No se seleccionó ningún archivo.';
-  if (!archivo.type.startsWith('image/')) return 'El archivo seleccionado no es una imagen.';
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(archivo.type)) return 'Elige una imagen JPEG, PNG o WebP.';
   if (archivo.size > TAMANO_MAXIMO_MB * 1024 * 1024) {
     return `La imagen pesa más de ${TAMANO_MAXIMO_MB} MB. Elige una más liviana.`;
   }

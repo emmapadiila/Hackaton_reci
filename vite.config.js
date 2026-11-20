@@ -1,22 +1,54 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
-// `npm run dev`        -> http://localhost:5173 (la cámara funciona en localhost)
-// `npm run dev:movil`  -> https://<IP-de-tu-PC>:5173 para probar desde el celular.
-//    Los navegadores solo permiten la cámara en HTTPS (o en localhost),
-//    por eso en modo "movil" se genera un certificado de desarrollo.
 export default defineConfig(({ mode }) => {
   const movil = mode === 'movil';
+
   return {
-    plugins: [react(), ...(movil ? [basicSsl()] : [])],
-    // El reconocimiento corre en un Web Worker con módulos ES.
-    worker: { format: 'es' },
-    // Transformers.js carga su motor (ONNX/WASM) por su cuenta: no lo preprocesamos.
-    optimizeDeps: { exclude: ['@huggingface/transformers'] },
+    plugins: [
+      react(),
+      ...(movil ? [basicSsl()] : []),
+    ],
+
+    // Mantener el reconocimiento de IA con Web Workers.
+    worker: {
+      format: 'es',
+    },
+
+    // Evitar el preprocesamiento de Transformers.js.
+    optimizeDeps: {
+      exclude: ['@huggingface/transformers'],
+    },
+
     server: {
-      host: movil ? true : 'localhost',
-      port: 5173,
+      // Permitir conexión del celular en modo móvil.
+      host: movil ? '0.0.0.0' : 'localhost',
+
+      // Desarrollo normal: 5173.
+      // Pruebas móviles HTTPS: 4174.
+      port: movil ? 4174 : 5173,
+      strictPort: true,
+
+      // Evitar que Vite vigile los archivos bloqueados
+      // del perfil de Chrome dentro de .eco-tools.
+      watch: {
+        ignored: [
+          '**/.eco-tools',
+          '**/.eco-tools/**',
+        ],
+      },
+
+      // Mantener comunicación con FastAPI.
+      proxy: {
+        '/api': {
+          target:
+            process.env.ECO_API_PROXY ||
+            'http://127.0.0.1:8000',
+          changeOrigin: true,
+        },
+      },
     },
   };
 });

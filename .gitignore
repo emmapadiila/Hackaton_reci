@@ -3,3 +3,8 @@ dist
 .DS_Store
 *.log
 /taco-dataset/
+/.eco-tools/
+/.venv/
+/data/
+/models/
+__pycache__/

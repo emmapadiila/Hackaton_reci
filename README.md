@@ -8,7 +8,7 @@ La persona apunta la cámara a uno o varios residuos, toma una foto y la app int
 2. **Identificar su material** (reciclable u orgánico para compostaje).
 3. Explicar **cómo separarlo** (cuando el catálogo esté validado con los recicladores y la huerta).
 
-> ⚠️ **Es un prototipo.** Usa modelos de IA **preentrenados y generales** (no entrenados con residuos de la comunidad). Sus resultados son aproximados y **todavía no se ha medido su precisión con residuos reales**. Las categorías y reglas de aceptación están **pendientes de validar**.
+> **Es un prototipo.** El escáner en navegador usa modelos generales y un clasificador piloto. EcoConecta incorpora modelos entrenados con conjuntos públicos. Queda pendiente validar el rendimiento y las reglas de aceptación con la comunidad.
 
 ---
 
@@ -67,7 +67,7 @@ El navegador **descarga los modelos de IA una sola vez** y los guarda en caché 
 
 ## Privacidad
 
-- **Las fotos nunca salen del dispositivo.** Los modelos se ejecutan dentro del navegador.
+- **EcoConecta envía la foto a FastAPI al tomarla o elegirla.** La pantalla muestra el reconocimiento y permite reintentar si falla la conexión.
 - No se guardan fotos: se liberan de la memoria al tomar otra o salir.
 - Lo único que se descarga de internet son los **modelos** (desde huggingface.co) y el **motor** (desde cdn.jsdelivr.net).
 
@@ -148,3 +148,88 @@ El navegador **descarga los modelos de IA una sola vez** y los guarda en caché 
 ## Tecnologías
 
 React 18 · Vite 6 · [Transformers.js](https://huggingface.co/docs/transformers.js) 4 (ONNX Runtime Web) · CLIP ViT-B/32 (OpenAI, MIT) · OWL-ViT B/32 (Google, Apache 2.0). Todo gratuito y de código abierto; no se usan servicios de pago.
+## EcoConecta · clasificación y recolección
+
+La cámara y la galería envían automáticamente la foto a `POST /api/ia/analizar-residuos`. YOLO propone cajas, el clasificador binario evalúa recortes y la visión contextual compara esos recortes con la escena. Cuando no hay candidatos, se omite la clasificación. La interfaz muestra un resultado con cajas normalizadas que se pueden tocar para ver cada objeto. Los modelos existentes del navegador siguen en el código y el endpoint anterior conserva su contrato.
+
+El endpoint recibe `imagen`, más `descripcion` y `referencia` opcionales. Entrega JSON consolidado o eventos reales de avance en NDJSON con `Accept: application/x-ndjson`. El análisis usa las fotos en memoria y los resultados se mantienen en la vista hasta cambiar de foto. La solicitud almacena únicamente la dirección y las categorías confirmadas cuando la persona la registra.
+
+### Configuración de análisis y solicitudes
+
+- El análisis automático local requiere `ECO_LOCAL_MODELS=1` y autorización para ese entorno. Los pesos se cargan en FastAPI.
+- Los pesos del detector de residuos y MobileNetV2 quedan en `models/`. Para contexto de objetos se puede habilitar el YOLO general existente mediante `ECO_CONTEXT`. Se usa exclusivamente como comprobación adicional de las cajas de residuos.
+- Para el análisis automático instala `requirements-contexto.txt` y pon el ONNX de visión CLIP cuantizado en `models/clip_vision_q8.onnx` o señala su ruta mediante `ECO_CLIP_VISION`. Es el CLIP de 89 MB que ya empleaba el navegador. Los vectores adicionales de pared, techo, piso y mobiliario se regeneran con `node scripts/generar-contexto-eco.mjs` en un entorno autorizado.
+- Esta copia almacenaba solicitudes en SQLite. Para usar PostgreSQL, instala `requirements-postgres.txt` y configura `ECO_DATABASE_URL` en el servidor. La API guarda las solicitudes en esa base cuando recibe la configuración. El despacho requiere conexión con un operador.
+- Para el webhook de WhatsApp, reutiliza `eventos_analisis` de `api/main.py` con una imagen validada y la referencia de conversación. La función `resumir_whatsapp` de `api/residuos.py` convierte el mismo resultado en texto. El webhook y el envío requieren la conexión con el proveedor de WhatsApp.
+
+### Pruebas del flujo consolidado
+
+```sh
+python -m unittest discover -s tests
+python tests/validar_fotos_eco.py --url http://127.0.0.1:8002
+node tests/validar_ui_eco.mjs
+```
+
+La prueba fotográfica registra fallos y fotos pendientes en `data/validacion-eco/informe.json`. Cuando TACO proporciona anotaciones, el informe incluye coincidencias de cajas a IoU ≥ 0,50 y cantidades sin coincidencia. Es una prueba de integración con ejemplos seleccionados. La prueba de interfaz requiere Chrome en modo de depuración local en el puerto 9225 y el frontend disponible en el puerto 4174.
+
+En la prueba local, pared, techo, habitación vacía y foto borrosa devolvieron cero candidatos. La botella individual pasó de tres propuestas a una. Persistieron fallos en papel y cartón y en las dos latas anotadas. La escena de tres botellas frente a una pared quedó pendiente de una foto representativa. La prueba de Chrome a 390 px comprueba una petición automática por foto y la selección de cajas. El guardado en PostgreSQL se probó con una base temporal.
+
+Las fotos de prueba se guardan en `data/validacion-eco/`. Se usaron miniaturas de [TACO](https://github.com/pedropro/TACO), incluida una con desenfoque añadido, y estas fotografías públicas:
+
+- `oficina.jpg` y sus recortes de techo y pared. Ged Carroll, CC BY 2.0. [Empty office](https://commons.wikimedia.org/wiki/File:Empty_office.jpg)
+- `botella.jpg`. Pranavshivakumar, CC BY-SA 3.0. [Water bottle 3](https://commons.wikimedia.org/wiki/File:Water_bottle_3.jpg)
+- `botellas-mesa.jpg`. Max Braun, CC BY-SA 2.0. [Water PET bottles on the table](https://commons.wikimedia.org/wiki/File:Water_PET_bottles_on_the_table_(2442924762).jpg)
+- `cascara.jpg`. Foto original de Priwo y recorte publicado en Commons. [Banane-A-05 cropped](https://commons.wikimedia.org/wiki/File:Banane-A-05_cropped.jpg)
+
+### Base original y adaptación
+
+El [notebook original](https://github.com/techSash/Waste-classification/blob/68339005d1d5f6e769c0ed15f58a9b7cd366edc7/WASTE%20CLASSIFIER%20WITH%20KERAS.ipynb) usa seis capas convolucionales de 32 y 64 filtros, max pooling, dropout, dos capas densas de 512 y una salida softmax. Carga imágenes de 60 × 30, aplica aumentación al entrenamiento y usa las carpetas O y R. El código archivado usa `adam(lr=…)`, `fit_generator`, `predict_classes` e `ImageDataGenerator`, APIs antiguas de Keras. La llamada de entrenamiento está comentada y reutilizaba TEST para validación. La salida guardada de predicción muestra una sola imagen.
+
+La adaptación usa Keras moderno y conserva la arquitectura CNN. La compara con MobileNetV2 preentrenada en ImageNet y congelada. Ambas usan validación separada, aumentación solo durante entrenamiento y normalización dentro del modelo. El script decodifica las fotos, descarta coincidencias del contenido RGB reducido a 64 × 64 entre particiones y excluye duplicados con etiquetas contradictorias. Variantes con recortes o compresión distinta pueden requerir inspección adicional. El modelo final se elige por pérdida de validación y ambos se evalúan después en TEST.
+
+### Entrenamiento y ejecución
+
+Usa Python 3.12 y un entorno virtual. En Windows nativo TensorFlow moderno usa CPU. Para GPU de TensorFlow usa Colab o Linux/WSL2 con el entorno CUDA correspondiente. [Instalación de TensorFlow](https://www.tensorflow.org/install/pip)
+
+```sh
+python -m pip install -r requirements.txt
+curl -fL https://www.kaggle.com/api/v1/datasets/download/techsash/waste-classification-data -o waste.zip
+python waste_data.py waste.zip data/kaggle
+python train.py --data data/kaggle
+python evaluate.py
+python predict.py ruta/foto.jpg
+python -m uvicorn api.main:app --port 8000
+```
+
+En otra terminal ejecuta `npm run dev`, o usa `npm run build` y `npm run preview` para probar la compilación. Para el celular, usa `npm run dev:movil` y abre la dirección HTTPS del equipo. Vite redirige `/api` a FastAPI. En producción, dirige `/api` al backend en el mismo origen. El [notebook de Colab](notebooks/entrenamiento_colab.ipynb) ejecuta el mismo entrenamiento. La fuente pública de imágenes es el [dataset original de Kaggle](https://www.kaggle.com/datasets/techsash/waste-classification-data). Si el proveedor solicita acceso, descarga con tu cuenta autorizada y extrae el ZIP en `data/kaggle`.
+
+Los artefactos quedan en `models/`: manifiesto, curvas, matrices de confusión, informes con precisión, exhaustividad y F1, comparación en JSON y el modelo final `ecoconecta_classifier.keras`. El umbral de revisión de 0.75 es operativo. La salida softmax requiere calibración con fotos de EcoConecta antes de interpretarse como probabilidad de acierto.
+
+Para probar la API directamente, ejecuta `curl -F "imagen=@foto.jpg;type=image/jpeg" http://127.0.0.1:8000/api/ia/detectar`. Reinicia FastAPI después de reemplazar un modelo que ya esté cargado en memoria.
+
+La corrida local auditó 25.077 imágenes del ZIP de Kaggle. Descartó 326 copias y el registro restante de un grupo con etiquetas opuestas. Quedaron 18.902 imágenes de entrenamiento, 3.335 de validación y 2.513 de prueba.
+
+Ambos clasificadores entrenaron tres épocas en CPU. MobileNetV2 quedó como modelo final por su menor pérdida de validación (0,2105 frente a 0,4081). Resultados sobre las 2.513 fotos de prueba:
+
+| Modelo | Acierto | Precisión macro | Exhaustividad macro | F1 macro |
+| --- | ---: | ---: | ---: | ---: |
+| CNN original adaptada | 84,64 % | 87,58 % | 82,97 % | 83,69 % |
+| MobileNetV2 | 88,78 % | 90,12 % | 87,74 % | 88,35 % |
+
+En el modelo final, la exhaustividad fue 96,79 % para orgánico y 78,69 % para aprovechable. Estos resultados corresponden a fotos completas de Kaggle. Queda por medir la clasificación de recortes que produce YOLO en escenas mixtas de la comunidad.
+
+### Detección de múltiples residuos
+
+```sh
+git clone https://github.com/pedropro/TACO.git taco-dataset
+python -m pip install -r requirements-yolo.txt requests
+python taco-dataset/download.py --dataset_path taco-dataset/data/annotations.json
+python train_yolo.py --prepare-only
+python train_yolo.py
+```
+
+El script convierte las cajas verificadas de [TACO](https://github.com/pedropro/TACO) a formato YOLO y divide por lotes de fotos. También admite las miniaturas locales del piloto anterior. Entrena una clase de localización, **residuo**, y evalúa mAP en lotes reservados. FastAPI activa detección múltiple cuando encuentra `models/ecoconecta_yolo.pt`. Hasta entonces, ofrece clasificación de foto completa.
+
+TACO contiene pocos ejemplos de restos de comida y carece de cajas separadas para muchas cáscaras, borra de café, hojas y residuos de cocina de la guía. Hacen falta fotos anotadas de esos objetos, en especial escenas mixtas de la comunidad, para comprobar la cobertura del detector y el rendimiento del clasificador sobre recortes.
+
+**Piloto local de detección.** YOLOv8n entrenó cinco épocas en CPU con 143 imágenes de entrenamiento, 37 de validación y 41 de prueba. En prueba había 202 objetos anotados. Obtuvo mAP@0,50 de 21,6 %, mAP@0,50–0,95 de 11,6 %, precisión de 57,0 % y exhaustividad de 21,8 % en el punto de evaluación de Ultralytics. La exhaustividad del piloto es baja y estas métricas corresponden a TACO. Los pesos y el informe quedaron en `models/ecoconecta_yolo.pt` y `models/yolo_metricas.json`.

@@ -24,7 +24,7 @@ export default function Inicio({ onAbrirCamara, onArchivo }) {
       </div>
 
       <p className="nota-privacidad">
-        🔒 Las fotos se quedan en tu dispositivo. No se guardan ni se envían a ningún servidor.
+        Al tomar o elegir una foto, se envía a EcoConecta para identificar los residuos.
       </p>
     </section>
   );
