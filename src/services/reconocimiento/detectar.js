@@ -5,7 +5,7 @@
  * 2. Descarta cajas "de fondo" (casi toda la foto) si hay otros objetos.
  * 3. Elimina duplicados: el detector suele marcar el mismo objeto varias veces
  *    (con consultas distintas o cajas casi iguales). Nos quedamos con la de
- *    mayor puntuación (supresión de no-máximos, NMS, sin importar la consulta).
+ *    mayor puntuación y guardamos las etiquetas alternativas de las cajas solapadas.
  * 4. Numera los objetos en orden de lectura (de arriba abajo, de izquierda a derecha).
  */
 
@@ -58,14 +58,16 @@ export function filtrarDetecciones(
     });
   }
 
-  // NMS independiente de la consulta: un objeto = una caja.
+  // NMS independiente de la consulta: una caja visible y sus posibles etiquetas.
   const conservados = [];
   for (const d of candidatos) {
-    if (conservados.some((c) => iou(c.caja, d.caja) > iouDuplicados)) {
+    const principal = conservados.find((c) => iou(c.caja, d.caja) > iouDuplicados);
+    if (principal) {
       descartados.duplicados++;
+      if (principal.consulta !== d.consulta) principal.consultasAlternativas.add(d.consulta);
       continue;
     }
-    conservados.push(d);
+    conservados.push({ ...d, consultasAlternativas: new Set() });
   }
 
   if (conservados.length > maxObjetos) {
@@ -84,7 +86,12 @@ export function filtrarDetecciones(
   return {
     // `posibleFondo`: la caja cubre casi toda la foto. Puede ser un residuo
     // fotografiado de cerca... o el fondo (mesa, tela). No lo damos por seguro.
-    objetos: conservados.map((d, i) => ({ numero: i + 1, ...d, posibleFondo: esFondo(d) })),
+    objetos: conservados.map(({ consultasAlternativas, ...d }, i) => ({
+      numero: i + 1,
+      ...d,
+      posibleFondo: esFondo(d),
+      consultasAlternativas: [...consultasAlternativas],
+    })),
     descartados,
   };
 }

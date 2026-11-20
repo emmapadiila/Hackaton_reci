@@ -112,11 +112,19 @@ export async function detectarObjetos(imagen, { onProgreso } = {}) {
   } catch (err) {
     return { estado: 'error', objetos: [], mensaje: mensajeFallo(err) };
   }
-  const objetos = r.objetos.map((o) => ({
-    ...o,
-    descripcion: o.consulta,
-    ...DATOS_POR_CONSULTA[o.consulta],
-  }));
+  const objetos = r.objetos.map((o) => {
+    const datos = DATOS_POR_CONSULTA[o.consulta];
+    const descripcion = datos?.descripcion ?? o.consulta;
+    const alternativas = (o.consultasAlternativas ?? []).map(
+      (consulta) => DATOS_POR_CONSULTA[consulta]?.descripcion ?? consulta
+    );
+    return {
+      ...o,
+      ...datos,
+      descripcion,
+      alternativas: [...new Set(alternativas)].filter((etiqueta) => etiqueta !== descripcion).slice(0, 2),
+    };
+  });
   return {
     estado: objetos.length > 0 ? 'detectado' : 'sin_objetos',
     mensaje:

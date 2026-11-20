@@ -99,6 +99,7 @@ export default function PanelDeteccion({ resultado, cargando, progreso, seleccio
                 <span className="item-texto">
                   Parece: <strong>{o.descripcion}</strong>
                   {o.categoriaOrganica && <small>{o.categoriaOrganica}</small>}
+                  {o.alternativas?.length > 0 && <small>Otras sugerencias: {o.alternativas.join(', ')}</small>}
                   <small>Puntuación del detector: {o.puntuacion.toFixed(2)}</small>
                   {o.posibleFondo && (
                     <small className="advertencia-fondo">
