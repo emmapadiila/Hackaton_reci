@@ -109,7 +109,7 @@ En la vista de cámara hay un desplegable **"Información técnica de la cámara
 
 Archivos: `ia.worker.js` (tarea `detectar`), `consultas-deteccion.js`, `detectar.js`, `config.js`.
 
-1. OWL-ViT recibe la foto y **22 consultas** de objetos frecuentes en residuos (`a bottle`, `a can`, `a sheet of paper`, `a banana peel`…). Devuelve cajas con una **puntuación**.
+1. OWL-ViT recibe la foto y las consultas visuales de `consultas-deteccion.js`, que incluyen los objetos de la guía Separa Bien. Devuelve cajas con una **puntuación**. Varias entradas de la guía pueden compartir una consulta o distinguirse solo con información adicional, como la resina, el vencimiento o si el envase está vacío.
 2. Se descartan cajas con puntuación menor a `UMBRAL_DETECCION` (0,1).
 3. `filtrarDetecciones()` limpia el resultado:
    - **Ajusta** cada caja a los bordes de la imagen.
@@ -276,7 +276,16 @@ implementation for Cast(13) node with name '/class_head/Cast'
 Se verificó que la compilación **estándar** (`ort-wasm-simd-threaded`) carga OWL-ViT y CLIP, y además pesa menos (14 MB vs 27 MB). Se configura en `ia.worker.js` (`env.backends.onnx.wasm.wasmPaths`).
 
 ### 10.4 Detector + clasificador (y no uno solo)
-OWL-ViT es bueno **localizando** objetos con vocabulario abierto; CLIP es mejor **comparando** un recorte con categorías de material. La Etapa 2 combinará ambos: recortar cada caja y clasificarla con CLIP.
+OWL-ViT localiza los objetos. Al seleccionar una caja en la app, la opción **Reconocer objeto con TACO** recorta esa región y consulta un clasificador entrenado con fotos anotadas de [TACO](https://github.com/pedropro/TACO). El clasificador mantiene fijo CLIP y aprende un centroide por clase a partir de los vectores de los recortes. Su resultado es una sugerencia entre las clases incluidas en el entrenamiento.
+
+Para repetir el entrenamiento desde la raíz del proyecto:
+
+```sh
+git clone --depth 1 https://github.com/pedropro/TACO.git taco-dataset
+node scripts/entrenar-taco.mjs --descargar
+```
+
+Las fotos y los pesos base quedan en `taco-dataset/`. Si ya están descargados, se puede ejecutar el script sin `--descargar`. El archivo `modelo-taco.json` guarda los centroides y el resultado de la prueba en recortes anotados de fotos apartadas del entrenamiento. La métrica mide aciertos de clasificación dado un recorte correcto. Para medir cuántos residuos encuentra la app, hace falta evaluar también las cajas que genera OWL-ViT.
 
 ### 10.5 Honestidad en los resultados
 - No se muestran resultados simulados ni ejemplos como si fueran reales.

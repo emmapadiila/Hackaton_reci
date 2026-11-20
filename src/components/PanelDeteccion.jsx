@@ -1,6 +1,6 @@
 import { colorObjeto } from './ImagenConRecuadros.jsx';
 
-const NOMBRE_MODELO = { detector: 'detector de objetos', clasificador: 'clasificador de materiales' };
+const NOMBRE_MODELO = { detector: 'detector de objetos', clasificador: 'clasificador CLIP' };
 
 /** Estado de carga compartido: descarga del modelo o análisis en curso. */
 export function IndicadorCarga({ progreso, textoAnalisis = 'Analizando imagen…', nota }) {
@@ -98,6 +98,7 @@ export default function PanelDeteccion({ resultado, cargando, progreso, seleccio
                 </span>
                 <span className="item-texto">
                   Parece: <strong>{o.descripcion}</strong>
+                  {o.categoriaOrganica && <small>{o.categoriaOrganica}</small>}
                   <small>Puntuación del detector: {o.puntuacion.toFixed(2)}</small>
                   {o.posibleFondo && (
                     <small className="advertencia-fondo">
@@ -121,8 +122,7 @@ export default function PanelDeteccion({ resultado, cargando, progreso, seleccio
           </>
         )}
         <br />
-        La puntuación del detector no es un porcentaje de certeza. El material de cada objeto se identificará en la
-        siguiente etapa.
+        La puntuación del detector no es un porcentaje de certeza.
       </p>
     </div>
   );

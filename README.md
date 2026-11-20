@@ -22,7 +22,8 @@ La persona apunta la cámara a uno o varios residuos, toma una foto y la app int
 | Clasificar el material **de cada objeto** detectado (Etapa 2) | ⏳ Siguiente paso |
 | Nueva interfaz de resultados con tarjetas y resumen (Etapa 3) | ⏳ Pendiente |
 | Catálogo validado (qué se acepta y cómo separarlo) | ⏳ Pendiente de los responsables del proyecto |
-| Modelo propio entrenado con fotos de la comunidad (Fases 3–4) | ⏳ Pendiente (aún no hay dataset) |
+| Clasificador piloto de recortes entrenado con fotos públicas de TACO | Disponible al seleccionar un objeto detectado |
+| Modelo propio entrenado con fotos de la comunidad (Fases 3–4) | ⏳ Pendiente (aún no hay dataset local) |
 
 ---
 

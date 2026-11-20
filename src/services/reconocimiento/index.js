@@ -21,7 +21,7 @@
  */
 import { CATEGORIAS, GRUPOS } from './categorias.js';
 import { MODELO, UMBRAL_CONFIANZA } from './config.js';
-import { DESCRIPCION_POR_CONSULTA } from './consultas-deteccion.js';
+import { DATOS_POR_CONSULTA } from './consultas-deteccion.js';
 
 export const reconocimientoDisponible = typeof Worker !== 'undefined';
 
@@ -67,16 +67,25 @@ function reiniciarWorker(error) {
   worker = null;
 }
 
-function enviarAlWorker(tipo, imagen, onProgreso) {
+function enviarAlWorker(tipo, imagen, onProgreso, caja) {
   const id = ++siguienteId;
   return new Promise((resolver, rechazar) => {
     pendientes.set(id, { resolver, rechazar, onProgreso });
-    obtenerWorker().postMessage({ id, tipo, imagen });
+    obtenerWorker().postMessage({ id, tipo, imagen, caja });
   });
 }
 
 const mensajeFallo = (err) =>
   `No se pudo ejecutar el modelo: ${err.message}. Si es la primera vez, revisa la conexión a internet (hay que descargar el modelo).`;
+
+export async function clasificarObjeto({ imagen, caja }, { onProgreso } = {}) {
+  try {
+    const { etiqueta } = await enviarAlWorker('clasificarObjeto', imagen, onProgreso, caja);
+    return { estado: 'reconocido', etiqueta };
+  } catch (err) {
+    return { estado: 'error', mensaje: mensajeFallo(err) };
+  }
+}
 
 /**
  * Detecta VARIOS objetos en la foto (Etapa 1).
@@ -105,7 +114,8 @@ export async function detectarObjetos(imagen, { onProgreso } = {}) {
   }
   const objetos = r.objetos.map((o) => ({
     ...o,
-    descripcion: DESCRIPCION_POR_CONSULTA[o.consulta] ?? o.consulta,
+    descripcion: o.consulta,
+    ...DATOS_POR_CONSULTA[o.consulta],
   }));
   return {
     estado: objetos.length > 0 ? 'detectado' : 'sin_objetos',
