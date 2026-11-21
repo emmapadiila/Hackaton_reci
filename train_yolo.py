@@ -77,6 +77,9 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, default=Path("models"))
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--image-size", type=int, default=416)
+    parser.add_argument("--batch", type=int, default=4)
+    parser.add_argument("--name", type=str, default="yolo")
+    parser.add_argument("--model", type=Path)
     parser.add_argument("--prepare-only", action="store_true")
     args = parser.parse_args()
     config = prepare(args.source, args.dataset.resolve())
@@ -85,9 +88,10 @@ if __name__ == "__main__":
 
         output = args.output.resolve()
         output.mkdir(parents=True, exist_ok=True)
-        trained = YOLO(str(output / "yolov8n.pt"))
+        trained = YOLO(str(args.model or output / "yolov8n.pt"))
         trained.train(data=str(config), epochs=args.epochs, imgsz=args.image_size, workers=0,
-                      project=str(output), name="yolo", plots=True, seed=42)
+                      batch=args.batch, device="cpu", amp=False,
+                      project=str(output), name=args.name, plots=True, seed=42)
         best = Path(trained.trainer.best)
         metrics = YOLO(str(best)).val(data=str(config), split="test", imgsz=args.image_size,
                                      workers=0, project=str(output), name="yolo_prueba")
