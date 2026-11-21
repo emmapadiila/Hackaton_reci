@@ -17,6 +17,13 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from predict import DEFAULT_MODEL, classify, load_classifier
 from api.residuos import analizar, inferir_cajas
+from api.roboflow import (
+    MODEL_ID as ROBOFLOW_MODEL_ID,
+    RoboflowConfigurationError,
+    RoboflowInferenceError,
+    inferir_roboflow,
+    normalizar_predicciones,
+)
 from api.vision_contextual import VisionContextual
 
 app = FastAPI(title="EcoConecta IA")
@@ -111,6 +118,31 @@ def detectar(imagen: UploadFile = File(...)):
             for item, result in zip(objects, classify(classifier(), (photo.crop(box) for box in crops))):
                 item.update(result)
     return {"modo": "deteccion", "ancho": width, "alto": height, "objetos": objects}
+
+
+@app.post("/api/ia/roboflow")
+def detectar_roboflow(imagen: UploadFile = File(...)):
+    photo = read_photo(imagen)
+    try:
+        result = inferir_roboflow(photo)
+        objects = normalizar_predicciones(result, *photo.size)
+    except RoboflowConfigurationError as error:
+        raise HTTPException(503, str(error)) from error
+    except RoboflowInferenceError as error:
+        logger.error("La solicitud a Roboflow falló (%s).", type(error).__name__)
+        raise HTTPException(502, "Roboflow no pudo analizar la fotografía.") from error
+    except ValueError as error:
+        logger.error("La respuesta de Roboflow no es válida (%s).", type(error).__name__)
+        raise HTTPException(502, "Roboflow devolvió una respuesta de análisis inválida.") from error
+    return {
+        "modo": "roboflow",
+        "modelo": ROBOFLOW_MODEL_ID,
+        "ancho": photo.width,
+        "alto": photo.height,
+        "objetos": objects,
+        "advertencias": ["El modelo detecta objetos, pero no confirma su material ni aprovechamiento."],
+        "requiere_revision": True,
+    }
 
 
 def eventos_analisis(photo, descripcion="", referencia=None):
